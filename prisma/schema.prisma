@@ -1,0 +1,154 @@
+// BiziBooks Prisma schema — Phase 1: Foundation
+// learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  STAFF
+  CLIENT
+}
+
+enum ClientEntityType {
+  SOLE_PROP
+  CORP
+}
+
+enum ClientVatStatus {
+  VAT
+  NON_VAT
+}
+
+enum ClientStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum DocumentRequestStatus {
+  PENDING
+  UPLOADED
+  RECEIVED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  client       Client?  @relation(fields: [clientId], references: [id])
+  clientId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+model Client {
+  id         String           @id @default(cuid())
+  name       String
+  entityType ClientEntityType
+  vatStatus  ClientVatStatus
+  status     ClientStatus     @default(ACTIVE)
+  users      User[]
+
+  documentRequests DocumentRequest[]
+  deadlines        Deadline[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DocumentRequest {
+  id       String                @id @default(cuid())
+  client   Client                @relation(fields: [clientId], references: [id])
+  clientId String
+  label    String
+  status   DocumentRequestStatus @default(PENDING)
+  document Document?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+model Document {
+  id                String          @id @default(cuid())
+  documentRequest   DocumentRequest @relation(fields: [documentRequestId], references: [id])
+  documentRequestId String          @unique
+  fileUrl           String
+  fileName          String
+  uploadedAt        DateTime        @default(now())
+  aiMatch           Boolean?
+  aiConfidence      Float?
+  aiClassifiedAt    DateTime?
+}
+
+model DocumentRequestTemplate {
+  id         String            @id @default(cuid())
+  label      String
+  entityType ClientEntityType?
+  vatStatus  ClientVatStatus?
+  createdAt  DateTime          @default(now())
+}
+
+model DeadlineTemplate {
+  id         String            @id @default(cuid())
+  name       String
+  entityType ClientEntityType?
+  vatStatus  ClientVatStatus?
+  frequency  String
+  dueRule    String
+  deadlines  Deadline[]
+  createdAt  DateTime          @default(now())
+}
+
+model Deadline {
+  id             String           @id @default(cuid())
+  client         Client           @relation(fields: [clientId], references: [id])
+  clientId       String
+  template       DeadlineTemplate @relation(fields: [templateId], references: [id])
+  templateId     String
+  dueDate        DateTime
+  completed      Boolean          @default(false)
+  reminderSentAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([templateId])
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  score     Int?
+  reasoning String?
+  createdAt DateTime @default(now())
+}
+
+model EmailLog {
+  id      String   @id @default(cuid())
+  to      String
+  subject String
+  body    String
+  sentAt  DateTime @default(now())
+}
+
+model FaqEntry {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+}
